@@ -34,8 +34,31 @@ mul(5,6)
 
 # BUILT IN FUNCTION
 
-import math
-help(math)
+"""import mymodule
+help(mymodule)
+mymodule.add(1,2)
+mymodule.sub(1,2)
+mymodule.mul(1,2)"""
+
+#__doc__(double underscore doc double underscore)/dunder doc
+
+#print(mymodule.add,__doc__)
+
+
+# 
+
+import mymodule
+
+def fun_eve_od(a,b):
+    c=a*b
+    print(c," fun")
+if __name__=='__main__':
+    fun_eve_od(10,8)
+    
+    
+    
+
+
 
 
 

@@ -1,0 +1,51 @@
+mpc_tracker:
+  ros__parameters:
+    odom_topic: /odom
+    scan_topic: /scan
+    cmd_topic: /cmd_vel
+    smoothed_path_topic: /smoothed_path
+    base_frame: base_link
+    map_frame: map
+
+    horizon: 12
+    dt: 0.15
+    max_v: 0.6
+    max_w: 1.2
+    max_acc_v: 0.6
+    max_acc_w: 1.5
+
+    q_xy: 12.0
+    q_yaw: 2.0
+    r_v: 0.2
+    r_w: 0.15
+    rd_v: 0.1
+    rd_w: 0.1
+
+    goal_tolerance: 0.2
+    yaw_tolerance: 0.3
+    target_speed: 0.45
+
+    safety_radius: 0.55
+    corridor_width: 0.60
+    dynamic_obstacle_lookahead: 2.8
+    lateral_shift_max: 1.4
+    lateral_shift_step: 0.2
+
+path_smoother:
+  ros__parameters:
+    input_waypoints_topic: /input_waypoints
+    output_path_topic: /smoothed_path
+    sample_spacing: 0.10
+    smooth_factor: 0.0
+
+dynamic_obstacle_spawner:
+  ros__parameters:
+    enabled: true
+    robot_odom_topic: /odom
+    spawn_service: /spawn_entity
+    delete_service: /delete_entity
+    spawn_interval_sec: 7.0
+    obstacle_lifetime_sec: 14.0
+    spawn_distance_min: 1.2
+    spawn_distance_max: 3.0
+    lateral_range: 0.8

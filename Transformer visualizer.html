@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Transformer step by step</title>
+    <style>
+        :root {
+            --bg: #0f1117;
+            --panel: #171a24;
+            --border: #2a2e3a;
+            --text: #e7e9ee;
+            --muted: #9aa0ac;
+            --accent: #5b8cff;
+            --accent-soft: #263257;
+            --warm: #e2823a;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 32px 16px 80px;
+        }
+
+        .wrap {
+            max-width: 760px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            font-size: 20px;
+            font-weight: 600;
+            margin: 0 0 4px;
+        }
+
+        .subtitle {
+            color: var(--muted);
+            font-size: 14px;
+            margin: 0 0 28px;
+        }
+
+        .dots {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 18px;
+        }
+
+        .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--border);
+            cursor: pointer;
+        }
+
+        .dot.on {
+            background: var(--accent);
+        }
+
+        .panel {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 24px;
+            min-height: 320px;
+        }
+
+        .step-title {
+            font-size: 17px;
+            font-weight: 600;
+            margin: 0 0 6px;
+        }
+
+        .step-desc {
+            color: var(--muted);
+            font-size: 14px;
+            line-height: 1.55;
+            margin: 0 0 20px;
+        }
+
+        .row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: flex-end;
+        }
+
+        .chip {
+            font-family: "SF Mono", Consolas, monospace;
+            font-size: 13px;
+            background: var(--accent-soft);
+            color: #cfe0ff;
+            padding: 8px 14px;
+            border-radius: 8px;
+        }
+
+        .chip.muted {
+            background: #22252f;
+            color: var(--muted);
+        }
+
+        .token-col {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .token-label {
+            font-size: 13px;
+            font-family: "SF Mono", Consolas, monospace;
+            color: var(--muted);
+        }
+
+        .bars {
+            display: flex;
+            align-items: flex-end;
+            gap: 2px;
+            height: 90px;
+        }
+
+        .bar {
+            width: 6px;
+            border-radius: 2px 2px 0 0;
+            background: var(--accent);
+        }
+
+        .bar.neg {
+            background: var(--warm);
+        }
+
+        table.heatmap {
+            border-collapse: collapse;
+            margin-top: 6px;
+        }
+
+        table.heatmap td {
+            width: 64px;
+            height: 40px;
+            text-align: center;
+            font-family: "SF Mono", Consolas, monospace;
+            font-size: 12px;
+            border: 1px solid var(--border);
+        }
+
+        table.heatmap th {
+            font-size: 12px;
+            color: var(--muted);
+            font-weight: 400;
+            padding: 4px;
+        }
+
+        .stat-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 10px;
+        }
+
+        .stat-card {
+            background: #1c1f29;
+            border-radius: 10px;
+            padding: 12px 14px;
+        }
+
+        .stat-card .label {
+            font-size: 12px;
+            color: var(--muted);
+            margin-bottom: 4px;
+        }
+
+        .stat-card .value {
+            font-size: 20px;
+            font-weight: 600;
+            font-family: "SF Mono", Consolas, monospace;
+        }
+
+        .nav {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+        }
+
+        button {
+            background: var(--panel);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px 18px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            border-color: var(--accent);
+        }
+
+        button:disabled {
+            opacity: 0.35;
+            cursor: default;
+        }
+
+        .missing {
+            color: var(--warm);
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .missing code {
+            background: #22252f;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="wrap">
+        <h1>Transformer, step by step</h1>
+        <p class="subtitle" id="subtitle">Loading run data…</p>
+
+        <div class="dots" id="dots"></div>
+        <div class="panel" id="panel"></div>
+
+        <div class="nav">
+            <button id="backBtn" onclick="move(-1)">Back</button>
+            <button id="nextBtn" onclick="move(1)">Next</button>
+        </div>
+    </div>
+
+    <script src="steps_data.js" onerror="window.STEP_DATA = null;"></script>
+    <script>
+        // If steps_data.js failed to load (file:// + missing file), STEP_DATA is undefined.
+        const DATA = (typeof STEP_DATA !== "undefined") ? STEP_DATA : null;
+
+        function bars(vector, max_n = 24) {
+            const slice = vector.slice(0, max_n);
+            const maxAbs = Math.max(...slice.map(v => Math.abs(v)), 0.001);
+            return '<div class="bars">' + slice.map(v => {
+                const h = Math.max(2, Math.round((Math.abs(v) / maxAbs) * 84));
+                const cls = v < 0 ? "bar neg" : "bar";
+                return `<div class="${cls}" style="height:${h}px" title="${v.toFixed(3)}"></div>`;
+            }).join('') + '</div>';
+        }
+
+        function heatmap(matrix, tokens) {
+            let html = '<table class="heatmap"><tr><th></th>' +
+                tokens.map(t => `<th>${t}</th>`).join('') + '</tr>';
+            for (let i = 0; i < matrix.length; i++) {
+                html += `<tr><th>${tokens[i]}</th>`;
+                for (let j = 0; j < matrix[i].length; j++) {
+                    const w = matrix[i][j];
+                    const alpha = Math.min(1, w);
+                    html += `<td style="background:rgba(91,140,255,${alpha.toFixed(2)})">${w.toFixed(2)}</td>`;
+                }
+                html += '</tr>';
+            }
+            return html + '</table>';
+        }
+
+        function buildSteps(d) {
+            const n = d.tokens.length;
+            const layerCount = d.layers.length;
+
+            const steps = [
+                {
+                    title: "1. Input text",
+                    desc: "The raw sentence fed into the tokenizer.",
+                    body: `<div class="row"><div class="chip">"${d.sentence}"</div></div>`
+                },
+                {
+                    title: "2. Tokenization",
+                    desc: "The sentence is split into tokens (this demo splits on whitespace; real models use BPE/WordPiece sub-words).",
+                    body: `<div class="row">${d.tokens.map(t => `<div class="chip">${t}</div>`).join('')}</div>`
+                },
+                {
+                    title: "3. Token IDs",
+                    desc: "Each token is looked up in the vocabulary and replaced with its integer ID.",
+                    body: `<div class="row">${d.tokens.map((t, i) => `<div class="chip">${t} &rarr; ${d.token_ids[i]}</div>`).join('')}</div>`
+                },
+                {
+                    title: "4. Embedding lookup",
+                    desc: "Each ID indexes into the embedding matrix, producing a dense vector (64 numbers here; bars show the first 24). These are the model's real learned-at-init weights for this run.",
+                    body: `<div class="row">` + d.tokens.map((t, i) =>
+                        `<div class="token-col"><div class="token-label">${t}</div>${bars(d.embedding[i])}</div>`
+                    ).join('') + `</div>`
+                },
+                {
+                    title: "5. + Positional encoding",
+                    desc: "A sinusoidal, position-dependent vector is added to each embedding, since attention has no built-in sense of order. Compare these bars to step 4 — same tokens, shifted values.",
+                    body: `<div class="row">` + d.tokens.map((t, i) =>
+                        `<div class="token-col"><div class="token-label">${t}</div>${bars(d.embed_plus_pos[i])}</div>`
+                    ).join('') + `</div>`
+                }
+            ];
+
+            for (let L = 0; L < layerCount; L++) {
+                const layer = d.layers[L];
+                steps.push({
+                    title: `6. Self-attention — layer ${L + 1}`,
+                    desc: "Each row is a query token; each column is a key token. A cell's darkness is how much that row-token attends to that column-token (averaged across all heads, real softmax output from this run).",
+                    body: heatmap(layer.attention, d.tokens)
+                });
+                steps.push({
+                    title: `7-9. Add, norm, feed-forward, norm — layer ${L + 1}`,
+                    desc: "The attention output is added back to its input (residual) and normalized, then passed through a per-token feed-forward MLP, then normalized again. Mean/std below are computed on the real vectors before and after this layer.",
+                    body: `<div class="stat-grid">
+        <div class="stat-card"><div class="label">Mean, before layer</div><div class="value">${layer.pre_mean.toFixed(3)}</div></div>
+        <div class="stat-card"><div class="label">Std, before layer</div><div class="value">${layer.pre_std.toFixed(3)}</div></div>
+        <div class="stat-card"><div class="label">Mean, after layer</div><div class="value">${layer.post_mean.toFixed(3)}</div></div>
+        <div class="stat-card"><div class="label">Std, after layer</div><div class="value">${layer.post_std.toFixed(3)}</div></div>
+      </div>`
+                });
+            }
+
+            steps.push({
+                title: "10. Final output",
+                desc: "One contextualized vector per input token, after passing through all encoder layers. Feed this to a classifier head, or to a decoder for next-token prediction.",
+                body: `<div class="row">` + d.tokens.map((t, i) =>
+                    `<div class="token-col"><div class="token-label">${t}</div>${bars(d.final_output[i])}</div>`
+                ).join('') + `</div>`
+            });
+
+            return steps;
+        }
+
+        let steps = [];
+        let i = 0;
+
+        function render() {
+            const s = steps[i];
+            document.getElementById('panel').innerHTML =
+                `<p class="step-title">${s.title}</p><p class="step-desc">${s.desc}</p>${s.body}`;
+            document.getElementById('dots').innerHTML = steps.map((_, idx) =>
+                `<div class="dot ${idx === i ? 'on' : ''}" onclick="goTo(${idx})"></div>`).join('');
+            document.getElementById('backBtn').disabled = (i === 0);
+            document.getElementById('nextBtn').disabled = (i === steps.length - 1);
+        }
+        function move(delta) { i = Math.max(0, Math.min(steps.length - 1, i + delta)); render(); }
+        function goTo(idx) { i = idx; render(); }
+
+        if (DATA) {
+            steps = buildSteps(DATA);
+            document.getElementById('subtitle').textContent =
+                `Real forward pass for "${DATA.sentence}" — ${steps.length} steps, click through or use Next/Back.`;
+            render();
+        } else {
+            document.getElementById('subtitle').textContent = "No run data found.";
+            document.getElementById('panel').innerHTML = `<p class="missing">
+    Couldn't find <code>steps_data.js</code> next to this file.<br><br>
+    Run <code>python transformer.py</code> first — it writes
+    <code>steps_data.js</code> in the same folder with the real numbers from that run,
+    then reopen this page.</p>`;
+            document.getElementById('backBtn').disabled = true;
+            document.getElementById('nextBtn').disabled = true;
+        }
+    </script>
+</body>
+
+</html>
